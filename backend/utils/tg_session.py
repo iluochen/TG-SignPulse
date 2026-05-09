@@ -144,6 +144,7 @@ def get_account_proxy(account_name: str) -> Optional[str]:
     return None
 
 
+
 def get_account_remark(account_name: str) -> Optional[str]:
     profile = get_account_profile(account_name)
     remark = profile.get("remark")

@@ -56,6 +56,62 @@ def _build_httpx_client(timeout: int = 10) -> httpx.AsyncClient:
     return httpx.AsyncClient(**kwargs)
 
 
+def _get_mtproto_proxy() -> Optional[Dict[str, Any]]:
+    """Return proxy dict for Pyrogram, using the same lookup chain as sign tasks.
+
+    Priority: TG_PROXY env → global_proxy in settings.
+    Sign tasks use: account proxy → global_proxy. For the bot client there is no
+    associated account, so we start from global_proxy directly.
+    """
+    proxy_url = _get_global_proxy()
+    if not proxy_url:
+        return None
+    try:
+        from backend.utils.proxy import build_proxy_dict
+        return build_proxy_dict(proxy_url)
+    except Exception:
+        return None
+
+
+async def _send_via_mtproto(
+    *,
+    bot_token: str,
+    chat_id: str,
+    text: str,
+    message_thread_id: Optional[int] = None,
+) -> None:
+    """Send a bot message via MTProto (kurigram/Pyrogram bot client).
+
+    Uses the same network path as sign tasks (direct DC connection, no HTTP DNS),
+    so this works in environments where api.telegram.org is DNS-blocked.
+    """
+    from tg_signer.core import get_api_config
+    from pyrogram import Client
+
+    api_id, api_hash = get_api_config()
+    proxy_dict = _get_mtproto_proxy()
+
+    # chat_id may be a string like "-1001234567890"; Pyrogram accepts int peer IDs
+    try:
+        peer: Any = int(chat_id)
+    except (ValueError, TypeError):
+        peer = chat_id  # username or invite link
+
+    kwargs: Dict[str, Any] = {}
+    if message_thread_id is not None:
+        kwargs["message_thread_id"] = message_thread_id
+
+    async with Client(
+        "bot_notifier",
+        api_id=api_id,
+        api_hash=api_hash,
+        bot_token=bot_token,
+        proxy=proxy_dict,
+        in_memory=True,
+    ) as bot:
+        await bot.send_message(peer, text[:4096], **kwargs)
+
+
 async def send_telegram_bot_message(
     *,
     bot_token: str,
@@ -63,6 +119,21 @@ async def send_telegram_bot_message(
     text: str,
     message_thread_id: Optional[int] = None,
 ) -> None:
+    """Send a bot message, preferring MTProto and falling back to HTTP Bot API."""
+    # MTProto first: avoids DNS dependency on api.telegram.org, uses same
+    # network path as sign tasks (direct Telegram DC connection).
+    try:
+        await _send_via_mtproto(
+            bot_token=bot_token,
+            chat_id=chat_id,
+            text=text,
+            message_thread_id=message_thread_id,
+        )
+        return
+    except Exception as e:
+        logger.warning("MTProto bot send failed (%s: %s), falling back to HTTP", type(e).__name__, e)
+
+    # Fallback: HTTP Bot API
     payload: Dict[str, Any] = {
         "chat_id": chat_id,
         "text": text[:3900],
@@ -77,7 +148,6 @@ async def send_telegram_bot_message(
             json=payload,
         )
         if response.status_code != 200:
-            # Telegram returns {"ok": false, "description": "..."} on errors
             try:
                 error_detail = response.json()
                 description = error_detail.get("description", response.text)

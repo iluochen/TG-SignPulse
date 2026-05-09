@@ -88,6 +88,23 @@ def health_checkz() -> dict[str, str]:
     return {"status": "ok"}
 
 
+@app.get("/api/version")
+def get_version() -> dict[str, str]:
+    from tg_signer import __version__
+    import subprocess, shutil
+    built_at = ""
+    if shutil.which("git"):
+        try:
+            built_at = subprocess.check_output(
+                ["git", "log", "-1", "--format=%ci"],
+                stderr=subprocess.DEVNULL,
+                text=True,
+            ).strip()[:16].replace("T", " ")
+        except Exception:
+            pass
+    return {"version": __version__, "built_at": built_at}
+
+
 @app.get("/readyz")
 def ready_check(response: Response) -> dict[str, str]:
     if app.state.ready:
@@ -97,12 +114,13 @@ def ready_check(response: Response) -> dict[str, str]:
 
 
 # 静态前端托管（Mode A: 单容器，FastAPI 提供静态文件）
-# 挂载 Next.js 静态资源
-app.mount(
-    "/_next",
-    StaticFiles(directory="/web/_next"),
-    name="nextjs_static",
-)
+# 仅在 /web/_next 目录存在时挂载（Docker 环境），本地开发时跳过
+if Path("/web/_next").exists():
+    app.mount(
+        "/_next",
+        StaticFiles(directory="/web/_next"),
+        name="nextjs_static",
+    )
 
 
 # Catch-all 路由：处理所有前端路由，返回 index.html

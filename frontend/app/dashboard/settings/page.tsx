@@ -26,6 +26,7 @@ import {
     saveTelegramConfig,
     resetTelegramConfig,
     TelegramConfig,
+    getVersion,
 } from "../../../lib/api";
 import {
     CaretLeft,
@@ -60,6 +61,7 @@ export default function SettingsPage() {
     const [totpLoading, setTotpLoading] = useState(false);
     const [configLoading, setConfigLoading] = useState(false);
     const [telegramLoading, setTelegramLoading] = useState(false);
+    const [versionInfo, setVersionInfo] = useState<{ version: string; built_at: string } | null>(null);
 
     // 鐢ㄦ埛鍚嶄慨鏀?
     const [usernameForm, setUsernameForm] = useState({
@@ -136,6 +138,7 @@ export default function SettingsPage() {
         loadAIConfig(tokenStr);
         loadGlobalSettings(tokenStr);
         loadTelegramConfig(tokenStr);
+        getVersion().then(setVersionInfo).catch(() => {});
     }, []);
 
     const loadTOTPStatus = async (tokenStr: string) => {
@@ -875,6 +878,15 @@ export default function SettingsPage() {
                     </div>
                 </div>
             </main>
+
+            {versionInfo && (
+                <div className="text-center text-[11px] text-main/25 py-4 select-none">
+                    v{versionInfo.version}
+                    {versionInfo.built_at && (
+                        <span className="ml-2 opacity-70">{versionInfo.built_at}</span>
+                    )}
+                </div>
+            )}
 
             <ToastContainer toasts={toasts} removeToast={removeToast} />
         </div>

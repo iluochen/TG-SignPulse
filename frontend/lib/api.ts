@@ -705,6 +705,9 @@ export interface SignTaskHistoryItem {
   flow_line_count?: number;
 }
 
+export const getVersion = () =>
+  fetch("/api/version").then((r) => r.json() as Promise<{ version: string; built_at: string }>);
+
 export const getSignTaskHistory = (
   token: string,
   name: string,
