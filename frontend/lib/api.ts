@@ -1,4 +1,4 @@
-import { Account, Task, TaskLog, TokenResponse } from "./types";
+import { TokenResponse } from "./types";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE || "/api";
 
@@ -265,51 +265,7 @@ export const submitQrPassword = (token: string, data: QrLoginPasswordRequest) =>
     body: JSON.stringify(data),
   }, token);
 
-// ============ 任务管理 ============
-
-export const fetchTasks = (token: string) =>
-  request<Task[]>("/tasks", {}, token);
-
-export const createTask = (
-  token: string,
-  payload: { name: string; cron: string; account_id: number; enabled: boolean }
-) =>
-  request<Task>(
-    "/tasks",
-    {
-      method: "POST",
-      body: JSON.stringify(payload),
-    },
-    token
-  );
-
-export const updateTask = (
-  token: string,
-  id: number,
-  payload: Partial<{ name: string; cron: string; enabled: boolean; account_id: number }>
-) =>
-  request<Task>(
-    `/tasks/${id}`,
-    {
-      method: "PUT",
-      body: JSON.stringify(payload),
-    },
-    token
-  );
-
-export const deleteTask = (token: string, id: number) =>
-  request(`/tasks/${id}`, { method: "DELETE" }, token);
-
-export const runTask = (token: string, id: number) =>
-  request<TaskLog>(`/tasks/${id}/run`, { method: "POST" }, token);
-
-export const fetchTaskLogs = (token: string, id: number, limit = 50) =>
-  request<TaskLog[]>(`/tasks/${id}/logs?limit=${limit}`, {}, token);
-
 // ============ 配置管理 ============
-
-export const listConfigTasks = (token: string) =>
-  request<{ sign_tasks: string[]; monitor_tasks: string[]; total: number }>("/config/tasks", {}, token);
 
 export const exportSignTask = async (token: string, taskName: string, accountName?: string) => {
   const params = new URLSearchParams();

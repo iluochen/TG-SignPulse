@@ -383,7 +383,7 @@ export default function SignTasksPage() {
                                                 <Lightning weight="fill" size={14} />
                                             </button>
                                             <Link
-                                                href={`/dashboard/account-tasks?name=${task.account_name}`}
+                                                href={`/dashboard/sign-tasks/create?edit=${task.name}&account=${task.account_name}`}
                                                 className={`action-btn !w-11 !h-11 ${loading ? 'pointer-events-none opacity-20' : ''}`}
                                                 title={t("edit")}
                                             >
@@ -493,7 +493,7 @@ export default function SignTasksPage() {
                                             <Lightning weight="fill" />
                                         </button>
                                         <Link
-                                            href={`/dashboard/account-tasks?name=${task.account_name}`}
+                                            href={`/dashboard/sign-tasks/create?edit=${task.name}&account=${task.account_name}`}
                                             className={`action-btn ${loading ? 'pointer-events-none opacity-20' : ''}`}
                                             title={t("edit")}
                                         >
