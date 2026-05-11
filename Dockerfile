@@ -21,8 +21,6 @@ ENV PIP_DISABLE_PIP_VERSION_CHECK=1 \
     VIRTUAL_ENV=/venv \
     PATH="/venv/bin:$PATH"
 
-RUN pip config set global.index-url https://mirrors.aliyun.com/pypi/simple/
-
 # Build tools for C extensions (tgcrypto, cryptography, etc.).
 # These stay in the builder and never reach the runtime image.
 RUN apt-get update && apt-get install -y --no-install-recommends build-essential \
