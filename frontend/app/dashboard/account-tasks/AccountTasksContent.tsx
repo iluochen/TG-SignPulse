@@ -309,7 +309,6 @@ export default function AccountTasksContent() {
         execution_mode: "range" as "fixed" | "range",
         range_start: "09:00",
         range_end: "18:00",
-        notify_on_failure: true,
     });
 
     // 缂傚倸鍊搁崐鎼佸磹閹间礁纾圭憸鐗堝笚閸嬪鏌ｉ幇顒備粵妞ゆ劘濮ら妵鍕箛閸撲焦鍋у銈傛櫇閸忔﹢骞冭ぐ鎺戠倞闁靛鍎崇粊宄邦渻閵堝骸浜栭柛濠冪箞楠炲啫螖閸涱喖浠哄┑鐐茬墛鐎笛囧极椤栫偞鈷戝ù鍏肩懅閻ｈ櫕淇婇銏狀伃闁?
@@ -328,7 +327,6 @@ export default function AccountTasksContent() {
         execution_mode: "fixed" as "fixed" | "range",
         range_start: "09:00",
         range_end: "18:00",
-        notify_on_failure: true,
     });
     const [copyTaskDialog, setCopyTaskDialog] = useState<{ taskName: string; config: string } | null>(null);
     const [showPasteDialog, setShowPasteDialog] = useState(false);
@@ -386,7 +384,6 @@ export default function AccountTasksContent() {
     const clipboardUnsupported = isZh ? "\u5F53\u524D\u73AF\u5883\u4E0D\u652F\u6301\u526A\u8D34\u677F\u64CD\u4F5C" : "Clipboard API is not available";
     const copyTaskFallbackManual = isZh ? "\u81EA\u52A8\u590D\u5236\u5931\u8D25\uFF0C\u8BF7\u5728\u5F39\u7A97\u5185\u624B\u52A8\u590D\u5236" : "Auto copy failed, please copy manually from dialog";
     const copyAllTasksTitle = t("export_all_tasks");
-    const taskFailureNotifyLabel = isZh ? "\u5931\u8D25\u901A\u77E5" : "Failure Notify";
 
     const sanitizeTaskName = useCallback((raw: string) => {
         return raw
@@ -907,7 +904,6 @@ export default function AccountTasksContent() {
                 execution_mode: newTask.execution_mode,
                 range_start: newTask.range_start,
                 range_end: newTask.range_end,
-                notify_on_failure: newTask.notify_on_failure,
             };
 
             await createSignTask(token, request);
@@ -927,7 +923,6 @@ export default function AccountTasksContent() {
                 execution_mode: "fixed",
                 range_start: "09:00",
                 range_end: "18:00",
-                notify_on_failure: true,
             });
             await loadData(token);
         } catch (err: any) {
@@ -967,7 +962,6 @@ export default function AccountTasksContent() {
             execution_mode: task.execution_mode || "fixed",
             range_start: task.range_start || "09:00",
             range_end: task.range_end || "18:00",
-            notify_on_failure: task.notify_on_failure !== false,
         });
         setShowEditDialog(true);
     };
@@ -1002,7 +996,6 @@ export default function AccountTasksContent() {
                 execution_mode: editTask.execution_mode,
                 range_start: editTask.range_start,
                 range_end: editTask.range_end,
-                notify_on_failure: editTask.notify_on_failure,
             }, accountName);
 
             addToast(t("update_success"), "success");
@@ -1182,19 +1175,6 @@ export default function AccountTasksContent() {
                                     <Lightning weight="fill" size={20} />
                                 </div>
                                 <span className="truncate">{showCreateDialog ? t("create_task") : `${t("edit_task")}: ${editingTaskName}`}</span>
-                                <label className="ml-2 inline-flex items-center gap-1.5 text-[10px] text-main/50 font-medium whitespace-nowrap">
-                                    <input
-                                        type="checkbox"
-                                        className="!mb-0 h-3.5 w-3.5 accent-[#8a3ffc]"
-                                        checked={showCreateDialog ? newTask.notify_on_failure : editTask.notify_on_failure}
-                                        onChange={(e) => {
-                                            showCreateDialog
-                                                ? setNewTask({ ...newTask, notify_on_failure: e.target.checked })
-                                                : setEditTask({ ...editTask, notify_on_failure: e.target.checked });
-                                        }}
-                                    />
-                                    {taskFailureNotifyLabel}
-                                </label>
                             </div>
                             <div
                                 onClick={() => { setShowCreateDialog(false); setShowEditDialog(false); }}

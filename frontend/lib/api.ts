@@ -593,7 +593,6 @@ export interface SignTask {
   execution_mode?: "fixed" | "range";
   range_start?: string;
   range_end?: string;
-  notify_on_failure?: boolean;
 }
 
 export interface CreateSignTaskRequest {
@@ -606,7 +605,6 @@ export interface CreateSignTaskRequest {
   execution_mode?: "fixed" | "range";
   range_start?: string;
   range_end?: string;
-  notify_on_failure?: boolean;
 }
 
 export interface UpdateSignTaskRequest {
@@ -617,7 +615,6 @@ export interface UpdateSignTaskRequest {
   execution_mode?: "fixed" | "range";
   range_start?: string;
   range_end?: string;
-  notify_on_failure?: boolean;
 }
 
 export interface ChatInfo {

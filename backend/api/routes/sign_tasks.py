@@ -105,8 +105,6 @@ class SignTaskCreate(BaseModel):
     range_start: Optional[str] = Field(None, description="随机范围开始时间")
     range_end: Optional[str] = Field(None, description="随机范围结束时间")
 
-    notify_on_failure: bool = Field(True, description="Send notification when task fails")
-
     @validator("name")
     def name_must_be_valid_filename(cls, v):
         import re
@@ -132,9 +130,6 @@ class SignTaskUpdate(BaseModel):
     range_end: Optional[str] = Field(None, description="随机范围结束时间")
 
 
-    notify_on_failure: Optional[bool] = Field(None, description="Send notification when task fails")
-
-
 class LastRunInfo(BaseModel):
     """最后执行信息"""
 
@@ -157,7 +152,6 @@ class SignTaskOut(BaseModel):
     execution_mode: Optional[str] = "fixed"
     range_start: Optional[str] = None
     range_end: Optional[str] = None
-    notify_on_failure: bool = True
 
 
 class ChatOut(BaseModel):
@@ -235,7 +229,6 @@ async def create_sign_task(
             execution_mode=payload.execution_mode,
             range_start=payload.range_start,
             range_end=payload.range_end,
-            notify_on_failure=payload.notify_on_failure,
         )
 
         # 同步调度器
@@ -293,7 +286,6 @@ async def update_sign_task(
             execution_mode=payload.execution_mode,
             range_start=payload.range_start,
             range_end=payload.range_end,
-            notify_on_failure=payload.notify_on_failure,
         )
 
         # 同步调度器
