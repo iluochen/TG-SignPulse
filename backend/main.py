@@ -90,19 +90,31 @@ def health_checkz() -> dict[str, str]:
 
 @app.get("/api/version")
 def get_version() -> dict[str, str]:
+    import os
     from tg_signer import __version__
-    import subprocess, shutil
-    built_at = ""
-    if shutil.which("git"):
-        try:
-            built_at = subprocess.check_output(
-                ["git", "log", "-1", "--format=%ci"],
-                stderr=subprocess.DEVNULL,
-                text=True,
-            ).strip()[:16].replace("T", " ")
-        except Exception:
-            pass
-    return {"version": __version__, "built_at": built_at}
+
+    # BUILD_DATE and BUILD_SHA are injected at Docker build time via ARG→ENV.
+    # Falls back to git log for local dev (when .git is present).
+    built_at = os.environ.get("BUILD_DATE", "")
+    build_sha = os.environ.get("BUILD_SHA", "")
+
+    if not built_at:
+        import subprocess, shutil
+        if shutil.which("git"):
+            try:
+                built_at = subprocess.check_output(
+                    ["git", "log", "-1", "--format=%ci"],
+                    stderr=subprocess.DEVNULL,
+                    text=True,
+                ).strip()[:16]
+            except Exception:
+                pass
+
+    version_str = __version__
+    if build_sha:
+        version_str = f"{__version__} ({build_sha})"
+
+    return {"version": version_str, "built_at": built_at}
 
 
 @app.get("/readyz")

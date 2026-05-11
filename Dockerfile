@@ -67,12 +67,18 @@ RUN pip install --no-cache-dir --no-deps .
 # ── Stage 2: Runtime — zero build tools, smallest possible image ─────────────
 FROM python:3.12-slim AS app
 
+# Build-time version metadata (injected by CI via --build-arg).
+ARG BUILD_DATE=""
+ARG BUILD_SHA=""
+
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PORT=8080 \
     TZ=Asia/Shanghai \
     VIRTUAL_ENV=/venv \
-    PATH="/venv/bin:$PATH"
+    PATH="/venv/bin:$PATH" \
+    BUILD_DATE=${BUILD_DATE} \
+    BUILD_SHA=${BUILD_SHA}
 
 WORKDIR /app
 

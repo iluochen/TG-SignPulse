@@ -63,8 +63,10 @@ jobs:
           username: luochend
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Set lowercase repository owner
-        run: echo "REPO_OWNER=${OWNER,,}" >> $GITHUB_ENV
+      - name: Set build metadata
+        run: |
+          echo "REPO_OWNER=${OWNER,,}" >> $GITHUB_ENV
+          echo "BUILD_DATE=$(date -u +'%Y-%m-%d %H:%M')" >> $GITHUB_ENV
         env:
           OWNER: ${{ github.repository_owner }}
 
@@ -79,6 +81,10 @@ jobs:
             ghcr.io/${{ env.REPO_OWNER }}/tg-signpulse:${{ github.sha }}
             luochend/tg-signpulse:latest
             luochend/tg-signpulse:${{ github.sha }}
+          # Inject build metadata so /api/version reflects each new image.
+          build-args: |
+            BUILD_SHA=${{ github.sha }}
+            BUILD_DATE=${{ env.BUILD_DATE }}
           # Scope keeps PR and production caches separate.
           cache-from: type=gha,scope=main
           cache-to: type=gha,mode=max,scope=main
