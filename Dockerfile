@@ -37,8 +37,11 @@ WORKDIR /build
 COPY pyproject.toml ./
 COPY tg_signer/__init__.py ./tg_signer/__init__.py
 
-# ② All external deps in one shot for best layer-cache hit rate.
+# ② All external deps — must stay in sync with pyproject.toml [project.dependencies].
+#    Using an explicit list (rather than `pip install .`) keeps this layer cached
+#    when only application source code changes.
 RUN pip install --no-cache-dir \
+      "kurigram<=2.2.7" \
       "pydantic<2" \
       "fastapi==0.109.2" \
       "bcrypt==4.0.1" \
@@ -49,7 +52,13 @@ RUN pip install --no-cache-dir \
       pyotp \
       "qrcode[pil]" \
       apscheduler \
-      python-multipart
+      python-multipart \
+      httpx \
+      openai \
+      croniter \
+      json_repair \
+      click \
+      typing-extensions
 
 # ③ tgcrypto: compile only on amd64; QEMU arm64 builds often fail.
 #    TARGETPLATFORM is always set by buildx — no uname -m fallback needed.
