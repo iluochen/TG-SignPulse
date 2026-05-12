@@ -152,6 +152,7 @@ class SignTaskOut(BaseModel):
     execution_mode: Optional[str] = "fixed"
     range_start: Optional[str] = None
     range_end: Optional[str] = None
+    next_run_time: Optional[str] = None  # APScheduler 下次触发时间（ISO 8601）
 
 
 class ChatOut(BaseModel):
@@ -193,17 +194,31 @@ class TaskHistoryItem(BaseModel):
 # API 路由
 
 
+def _inject_next_run_times(tasks: list[dict]) -> list[dict]:
+    """向任务列表注入 APScheduler 的下次触发时间"""
+    try:
+        from backend.scheduler import scheduler as _scheduler
+        if not _scheduler:
+            return tasks
+        for task in tasks:
+            account = task.get("account_name", "")
+            name = task.get("name", "")
+            job_id = f"sign-{account}-{name}"
+            job = _scheduler.get_job(job_id)
+            if job and job.next_run_time:
+                task["next_run_time"] = job.next_run_time.isoformat()
+    except Exception:
+        pass
+    return tasks
+
+
 @router.get("", response_model=List[SignTaskOut])
 def list_sign_tasks(
     account_name: Optional[str] = None, current_user=Depends(get_current_user)
 ):
-    """
-    获取所有签到任务列表
-
-    Args:
-        account_name: 可选，按账号名筛选任务
-    """
+    """获取所有签到任务列表"""
     tasks = get_sign_task_service().list_tasks(account_name=account_name)
+    _inject_next_run_times(tasks)
     return tasks
 
 

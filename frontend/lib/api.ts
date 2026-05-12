@@ -549,6 +549,7 @@ export interface SignTask {
   execution_mode?: "fixed" | "range";
   range_start?: string;
   range_end?: string;
+  next_run_time?: string | null;  // ISO 8601，来自 APScheduler
 }
 
 export interface CreateSignTaskRequest {

@@ -56,61 +56,68 @@ function isSameDay(a: Date, b: Date) {
         a.getDate() === b.getDate();
 }
 
+function fmtHHMM(d: Date) {
+    return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+}
+
 function getNextRunInfo(task: SignTask): {
     label: "today" | "tomorrow" | "in_window" | "paused" | "unknown";
-    timeRange?: string;   // "HH:MM – HH:MM" 或精确时刻
+    timeStr: string;   // 显示内容
+    isExact: boolean;  // true=精确时刻  false=区间
 } {
-    if (!task.enabled) return { label: "paused" };
+    if (!task.enabled) return { label: "paused", timeStr: "", isExact: false };
 
     const now = new Date();
 
+    // ── 优先用后端 APScheduler 的精确触发时间 ──────────────────────────────
+    if (task.next_run_time) {
+        const nrt = new Date(task.next_run_time);
+        const label = isSameDay(nrt, now) ? "today" : "tomorrow";
+        const triggerHHMM = fmtHHMM(nrt);
+
+        if (task.execution_mode === "range" && task.range_end) {
+            // 触发时间 = range_start，实际执行在窗口内随机
+            return { label, timeStr: `${triggerHHMM} ~ ${task.range_end}`, isExact: false };
+        }
+        // 固定 cron：触发即执行，时间精确
+        return { label, timeStr: triggerHHMM, isExact: true };
+    }
+
+    // ── 后端未返回时间（如调度器未启动）时纯前端兜底 ───────────────────────
     if (task.execution_mode === "range" && task.range_start && task.range_end) {
         const start = parseHHMM(task.range_start);
         const end   = parseHHMM(task.range_end);
-        if (!start || !end) return { label: "unknown" };
+        if (!start || !end) return { label: "unknown", timeStr: "", isExact: false };
 
-        const rangeStr = `${task.range_start} – ${task.range_end}`;
-
-        // 今天窗口的绝对时间点
+        const rangeStr = `${task.range_start} ~ ${task.range_end}`;
         const todayStart = new Date(now); todayStart.setHours(start.h, start.m, 0, 0);
-        const todayEnd   = new Date(now); todayEnd.setHours(end.h,   end.m,   59, 999);
+        const todayEnd   = new Date(now); todayEnd.setHours(end.h, end.m, 59, 999);
 
-        // 今天是否已成功执行
-        const lastRun = task.last_run;
         const ranSuccessToday =
-            !!lastRun &&
-            lastRun.success &&
-            isSameDay(new Date(lastRun.time), now);
+            !!task.last_run && task.last_run.success &&
+            isSameDay(new Date(task.last_run.time), now);
 
-        if (ranSuccessToday) {
-            return { label: "tomorrow", timeRange: rangeStr };
-        }
-        if (now < todayStart) {
-            return { label: "today", timeRange: rangeStr };
-        }
-        if (now <= todayEnd) {
-            return { label: "in_window", timeRange: rangeStr };
-        }
-        // 窗口已过，今天未成功 → 明天
-        return { label: "tomorrow", timeRange: rangeStr };
+        if (ranSuccessToday)  return { label: "tomorrow", timeStr: rangeStr, isExact: false };
+        if (now < todayStart) return { label: "today",    timeStr: rangeStr, isExact: false };
+        if (now <= todayEnd)  return { label: "in_window", timeStr: rangeStr, isExact: false };
+        return { label: "tomorrow", timeStr: rangeStr, isExact: false };
     }
 
-    // fixed cron — 解析 "分 时 * * *" 最常见格式
     if (task.sign_at) {
         const m = /^(\d+)\s+(\d+)\s+\*\s+\*\s+\*$/.exec(task.sign_at.trim());
         if (m) {
-            const minute = parseInt(m[1], 10);
-            const hour   = parseInt(m[2], 10);
-            const todayAt = new Date(now); todayAt.setHours(hour, minute, 0, 0);
+            const todayAt = new Date(now);
+            todayAt.setHours(parseInt(m[2], 10), parseInt(m[1], 10), 0, 0);
             const target = todayAt > now ? todayAt : new Date(todayAt.getTime() + 86400_000);
-            const hh = String(target.getHours()).padStart(2, "0");
-            const mm = String(target.getMinutes()).padStart(2, "0");
-            const label = isSameDay(target, now) ? "today" : "tomorrow";
-            return { label, timeRange: `${hh}:${mm}` };
+            return {
+                label: isSameDay(target, now) ? "today" : "tomorrow",
+                timeStr: fmtHHMM(target),
+                isExact: true,
+            };
         }
     }
 
-    return { label: "unknown" };
+    return { label: "unknown", timeStr: "", isExact: false };
 }
 import { ToastContainer, useToast } from "../../../components/ui/toast";
 import { ThemeLanguageToggle } from "../../../components/ThemeLanguageToggle";
@@ -441,7 +448,13 @@ export default function SignTasksPage() {
                                                     };
                                                     return (
                                                         <div className={`text-[10px] font-mono font-bold ${colorMap[info.label]}`}>
-                                                            {t("task_next_run")}: {labelMap[info.label]}{info.timeRange ? ` · ${info.timeRange}` : ""}
+                                                            {t("task_next_run")}: {info.label === "paused" || info.label === "unknown"
+                                                                ? labelMap[info.label]
+                                                                : `${labelMap[info.label]} · ${info.timeStr}`
+                                                            }
+                                                            {info.timeStr && !info.isExact && (
+                                                                <span className="text-[9px] text-main/30 font-normal ml-1">随机</span>
+                                                            )}
                                                         </div>
                                                     );
                                                 })()}
@@ -574,7 +587,13 @@ export default function SignTasksPage() {
                                                     <span className="text-[10px] font-bold uppercase tracking-wider">{t("task_next_run")}</span>
                                                 </div>
                                                 <span className={`text-xs font-mono font-bold ${colorMap[info.label]}`}>
-                                                    {labelMap[info.label]}{info.timeRange ? ` · ${info.timeRange}` : ""}
+                                                    {info.label === "paused" || info.label === "unknown"
+                                                        ? (labelMap[info.label])
+                                                        : `${labelMap[info.label]} · ${info.timeStr}`
+                                                    }
+                                                    {info.timeStr && !info.isExact && (
+                                                        <span className="text-[9px] text-main/30 font-normal ml-1">随机</span>
+                                                    )}
                                                 </span>
                                             </div>
                                         );
