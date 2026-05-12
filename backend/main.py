@@ -44,7 +44,23 @@ from backend.services.users import ensure_admin  # noqa: E402
 from backend.utils.paths import ensure_data_dirs  # noqa: E402
 
 
-# Silence /health check logs
+# ---------------------------------------------------------------------------
+# Unified logging configuration
+# ---------------------------------------------------------------------------
+_LOG_FORMAT = "%(asctime)s | %(levelname)-8s | %(name)-30s | %(message)s"
+_LOG_DATE_FMT = "%Y-%m-%d %H:%M:%S"
+
+logging.basicConfig(
+    level=logging.INFO,
+    format=_LOG_FORMAT,
+    datefmt=_LOG_DATE_FMT,
+)
+
+# Silence noisy third-party loggers
+for _noisy in ("pyrogram", "apscheduler", "httpx", "httpcore"):
+    logging.getLogger(_noisy).setLevel(logging.WARNING)
+
+
 class HealthCheckFilter(logging.Filter):
     def filter(self, record: logging.LogRecord) -> bool:
         msg = record.getMessage()

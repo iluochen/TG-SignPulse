@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 import json
+import logging
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -18,6 +19,7 @@ from backend.utils.storage import (
 )
 
 settings = get_settings()
+logger = logging.getLogger("backend.config")
 
 
 class ConfigService:
@@ -444,7 +446,7 @@ class ConfigService:
                 # 这里的职责主要是文件操作。清理 cache 是必须的。
                 pass
             except Exception as e:
-                 print(f"Failed to clear cache: {e}")
+                logger.warning("Failed to clear cache: %s", e)
 
         except (json.JSONDecodeError, KeyError) as e:
             result["errors"].append(f"Invalid JSON format: {str(e)}")

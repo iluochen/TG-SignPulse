@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 from typing import Any, Dict, List, Optional
 
 from fastapi import (
@@ -26,6 +27,7 @@ from backend.core.database import get_db
 from backend.services.sign_tasks import get_sign_task_service
 
 router = APIRouter()
+logger = logging.getLogger("backend.api.sign_tasks")
 
 
 async def _restart_keyword_monitors() -> None:
@@ -228,8 +230,6 @@ async def create_sign_task(
     current_user=Depends(get_current_user),
 ):
     """创建新的签到任务"""
-    import traceback
-
     try:
         # 转换 chats 为字典列表
         chats_dict = [chat.dict() for chat in payload.chats]
@@ -254,8 +254,7 @@ async def create_sign_task(
 
         return task
     except Exception as e:
-        print(f"创建任务失败: {str(e)}")
-        traceback.print_exc()
+        logger.error("创建任务失败: %s", e, exc_info=True)
         raise HTTPException(status_code=500, detail=f"创建任务失败: {str(e)}")
 
 
@@ -313,10 +312,7 @@ async def update_sign_task(
     except HTTPException:
         raise
     except Exception as e:
-        import traceback
-
-        print(f"更新任务失败: {str(e)}")
-        traceback.print_exc()
+        logger.error("更新任务失败: %s", e, exc_info=True)
         raise HTTPException(status_code=500, detail=f"更新任务失败: {str(e)}")
 
 
@@ -521,7 +517,7 @@ async def sign_task_logs_ws(
     except WebSocketDisconnect:
         pass
     except Exception as e:
-        print(f"WS Error: {e}")
+        logger.error("WebSocket 日志推送异常: %s", e)
     finally:
         try:
             await websocket.close()

@@ -31,6 +31,7 @@ from backend.utils.tg_session import (
 from tg_signer.core import UserSigner, get_client
 
 settings = get_settings()
+logger = logging.getLogger("backend.sign_tasks")
 
 
 class TaskLogHandler(logging.Handler):
@@ -106,9 +107,7 @@ class SignTaskService:
         self.run_history_dir = self.workdir / "history"
         self.signs_dir.mkdir(parents=True, exist_ok=True)
         self.run_history_dir.mkdir(parents=True, exist_ok=True)
-        print(
-            f"DEBUG: 初始化 SignTaskService, signs_dir={self.signs_dir}, exists={self.signs_dir.exists()}"
-        )
+        logger.debug("初始化 SignTaskService signs_dir=%s", self.signs_dir)
         self._active_logs: Dict[tuple[str, str], List[str]] = {}  # (account, task) -> logs
         self._active_tasks: Dict[tuple[str, str], bool] = {}  # (account, task) -> running
         self._cleanup_tasks: Dict[tuple[str, str], asyncio.Task] = {}
@@ -659,7 +658,7 @@ class SignTaskService:
                         with open(config_file, "w", encoding="utf-8") as f:
                             json.dump(config, f, ensure_ascii=False, indent=2)
                     except Exception as e:
-                        print(f"DEBUG: 更新任务配置 last_run 失败: {e}")
+                        logger.warning("更新任务配置 last_run 失败: %s", e)
 
             # 2. 更新内存缓存 (关键优化：避免置空 self._tasks_cache)
             if self._tasks_cache is not None:
@@ -669,7 +668,7 @@ class SignTaskService:
                         break
 
         except Exception as e:
-            print(f"DEBUG: 保存运行信息失败: {str(e)}")
+            logger.warning("保存运行信息失败: %s", e)
 
     def _append_scheduler_log(self, filename: str, message: str) -> None:
         try:
@@ -944,7 +943,7 @@ class SignTaskService:
         tasks = []
         base_dir = self.signs_dir
 
-        print(f"DEBUG: 扫描任务目录: {base_dir}")
+        logger.debug("扫描任务目录: %s", base_dir)
         try:
             # 扫描所有子目录 (账号名)
             for account_path in base_dir.iterdir():
@@ -980,7 +979,7 @@ class SignTaskService:
             return self._tasks_cache
 
         except Exception as e:
-            print(f"DEBUG: 扫描任务出错: {str(e)}")
+            logger.error("扫描任务目录出错: %s", e, exc_info=True)
             return []
 
     def _load_task_config(self, task_dir: Path) -> Optional[Dict[str, Any]]:
@@ -1111,7 +1110,7 @@ class SignTaskService:
             with open(config_file, "w", encoding="utf-8") as f:
                 json.dump(config, f, ensure_ascii=False, indent=2)
         except Exception as e:
-            print(f"DEBUG: 写入配置文件失败: {str(e)}")
+            logger.error("写入配置文件失败: %s", e)
             raise
 
         # Invalidate cache
@@ -1127,7 +1126,7 @@ class SignTaskService:
                 enabled=True,
             )
         except Exception as e:
-            print(f"DEBUG: 更新调度任务失败: {e}")
+            logger.warning("更新调度任务失败: %s", e)
 
         return {
             "name": task_name,
@@ -1219,10 +1218,9 @@ class SignTaskService:
                 enabled=config["enabled"],
             )
         except Exception as e:
-            msg = f"DEBUG: 更新调度任务失败: {e}"
-            print(msg)
+            logger.warning("更新调度任务失败: %s", e)
             self._append_scheduler_log(
-                "scheduler_error.log", f"{datetime.now()}: {msg}"
+                "scheduler_error.log", f"{datetime.now()}: 更新调度任务失败: {e}"
             )
         else:
             self._append_scheduler_log(
@@ -1281,7 +1279,7 @@ class SignTaskService:
                 acc_name, task_name, cron_expr, enabled=bool(enabled)
             )
         except Exception as e:
-            print(f"DEBUG: 切换调度任务状态失败: {e}")
+            logger.warning("切换调度任务状态失败: %s", e)
 
         existing["enabled"] = bool(enabled)
         return existing
@@ -1322,7 +1320,7 @@ class SignTaskService:
 
                     remove_sign_task_job(real_account_name, task_name)
                 except Exception as e:
-                    print(f"DEBUG: 移除调度任务失败: {e}")
+                    logger.warning("移除调度任务失败: %s", e)
 
             return True
         except Exception:
@@ -1432,7 +1430,7 @@ class SignTaskService:
 
             await get_telegram_service().delete_account(account_name)
         except Exception as e:
-            print(f"DEBUG: 清理无效 Session 失败: {e}")
+            logger.warning("清理无效 Session 失败: %s", e)
 
         # 清理 chats 缓存，避免后续误用旧数据
         try:
@@ -1616,7 +1614,7 @@ class SignTaskService:
                 with open(cache_file, "w", encoding="utf-8") as f:
                     json.dump(chats, f, ensure_ascii=False, indent=2)
             except Exception as e:
-                print(f"DEBUG: 保存 Chat 缓存失败: {e}")
+                logger.warning("保存 Chat 缓存失败: %s", e)
 
             return chats
 
@@ -1691,7 +1689,7 @@ class SignTaskService:
         # 检查是否能获取锁 (非阻塞检查，如果已被锁定则说明该账号有其他任务在运行)
         # 这里我们希望排队等待，还是直接报错？
         # 考虑到定时任务同时触发，应该排队执行。
-        print(f"DEBUG: 等待获取账号锁 {account_name}...")
+        logger.debug("等待获取账号锁 %s", account_name)
 
         task_key = self._task_key(account_name, task_name)
         self._active_tasks[task_key] = True
@@ -1750,7 +1748,7 @@ class SignTaskService:
                             )
                             await asyncio.sleep(wait_seconds)
 
-                    print(f"DEBUG: 已获取账号锁 {account_name}，开始执行任务 {task_name}")
+                    logger.info("已获取账号锁 %s，开始执行任务 %s", account_name, task_name)
                     self._active_logs[task_key].append(
                         f"开始执行任务: {task_name} (账号: {account_name})"
                     )
