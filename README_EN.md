@@ -10,34 +10,36 @@ TG-SignPulse is a Telegram automation panel. It helps you manage multiple accoun
 
 ## What Is This Project For?
 
-- Manage multiple Telegram accounts in one place
-- Automate check-ins, message sending, and button clicking
-- Use AI actions for image recognition and math challenges
-- View execution flow logs and recent bot replies
-- Run check-ins inside specific Telegram group topics
-- Use clipboard bulk task import/export, global proxy fallback, failure notifications, and keyword monitoring
+- Manage multiple Telegram accounts in one place (phone code or QR code login)
+- Automate check-ins, message sending, and button clicking with fixed or random-range schedules
+- 8 action types including AI vision, AI math solving, and keyword monitoring
+- Run check-ins inside specific Telegram group topics (Thread/Topic)
+- Real-time WebSocket log streaming with per-run flow details and latest bot replies
+- Clipboard bulk task import/export, global proxy fallback, failure notifications, and keyword monitoring
 - Run reliably on a VPS for long-term automation
 
 ## Highlights
 
-- Multi-account management
-- Action sequences: `Send Text`, `Click Text Button`, `Send Dice`, `AI Vision`, `AI Calculate`, `Keyword Monitor`
-- Topic check-ins for specific Thread/Topic IDs in Telegram forum groups
-- Task migration via clipboard export/import with duplicate skipping
-- Telegram Bot notifications, keyword-match notifications, and pre-task invalid-session detection
-- Visual logs with per-run flow details and latest bot replies
-- Stability improvements for timeout/429 scenarios and long-running memory behavior
-- Docker-first deployment (easy to start and migrate)
+- **Multi-account management**: Phone code or QR code login, per-account proxy support
+- **8 action types**: Send Text, Send Dice, Click Button, AI Vision→Click Button, AI Vision→Send Text, AI Calculate→Send Text, AI Calculate→Click Button, Keyword Monitor
+- **Two scheduling modes**: Fixed CRON time or randomized execution within a time window
+- **Topic check-ins**: Send and filter replies by specific Thread/Topic in Telegram forum groups
+- **Notifications**: Telegram Bot for task failures, invalid sessions, and login alerts; keyword matches support Telegram Bot, Bark, or custom URL
+- **Real-time logs**: WebSocket live log streaming, history auto-retained for 3 days
+- **Task migration**: Export all tasks to clipboard, paste-import with automatic duplicate skipping
+- **Panel security**: JWT auth + TOTP two-factor authentication
+- **Docker-first deployment**: Docker / Docker Compose ready, auto-adapts to mounted directory UID/GID
 
 ## Feature Map
 
 | Area | Capability |
 | --- | --- |
-| Account management | Multi-account login, proxy settings, status checks, re-login |
-| Task workflows | Fixed or random-range schedules, ordered actions, action interval |
+| Account management | Multi-account login (phone/QR), per-account proxy, status checks, re-login, TOTP 2FA |
+| Task workflows | Fixed CRON / random-range schedules, 8 action types, action interval, auto-delete messages |
 | Topic support | Send and filter replies by Telegram group `Thread ID` |
-| Keyword monitoring | Push matches via Telegram Bot, Forward, Bark, or custom URL |
-| Operations | Docker deployment, persistent data directory, health checks, config import/export |
+| Keyword monitoring | Contains / regex matching, push notification or continue action sequence on match |
+| Notifications | Global: Telegram Bot (failures / invalid session / login); Keyword match: Telegram Bot / Bark / custom URL |
+| Operations | Docker deployment, persistent data directory, health checks, config version migration, import/export |
 
 ## Beginner Deployment (3 Steps)
 
@@ -163,54 +165,6 @@ frontend/     Next.js management panel
 
 - **Fix task execution 500 error**: A local `logger` assignment inside the `except` block of `run_task_with_logs` caused an `UnboundLocalError` throughout the function; the redundant assignment has been removed.
 - **Range-mode catchup on task save**: Creating, editing, or re-enabling a range-mode task now immediately schedules a one-shot run if the current time falls within the window and the task has not run today.
-
-### 2026-05-03
-
-- **Keyword monitor stability fixes**: Background monitor now ensures the client runs with `no_updates=False` and rebuilds stale clients automatically; regex capture groups are now preferred as `{keyword}`, fixing redemption flows where callback confirmation was unavailable.
-- **Button-click flow retries**: On button-click failure, the full task flow restarts from step 1 instead of sending button text as plain message; up to 3 retries by default (configurable via `SIGN_TASK_FLOW_RETRY_ATTEMPTS`).
-
-### 2026-04-29
-
-- **Keyword continue actions**: `Push Channel` now includes a `Continue Actions` option; matched messages can trigger an action sequence with variable support (`{keyword}`, `{message}`, `{sender}`, etc.).
-- **Telegram Bot notification refactor**: Notifications split into a dedicated component with a master switch, login notification switch, and per-task failure notification control.
-- **Scheduling compatibility fix**: Restored support for the older `signs/<task>/config.json` layout; fixed account cards stuck on "checking".
-
-### 2026-04-28
-
-- **Pre-task account status check**: Tasks now verify session validity before execution; invalid sessions are persisted and notified once without spamming repeated alerts.
-- **Dashboard re-login flow**: Account cards now show `Session Invalid` directly; clicking opens the re-login dialog immediately.
-
-### 2026-04-27
-
-- **Keyword monitor as action**: Keyword monitoring is now an action in the ordered sequence, configurable per task, account, chat, and topic; push channel parameters are shown on demand.
-
-### 2026-04-26
-
-- **Telegram Topic (Thread) support**: Tasks can now run inside a specific group topic; messages are sent with `message_thread_id` and replies from other topics are filtered out.
-- **Global proxy fallback and clipboard bulk import/export**: Accounts without a dedicated proxy fall back to the global proxy; tasks can be exported/imported via clipboard with automatic duplicate skipping.
-- **Telegram Bot failure notifications**: Failed tasks push account, task, error, and recent log context to a configured Bot.
-
-### 2026-03-20
-
-- **SQLite deadlock fix**: Hardened the Pyrogram client lifecycle cache to eliminate `database is locked` errors under high concurrency.
-- **Duplicate run prevention**: Clicking "Run" on an already-running task shows a warning and switches to the live log stream instead of triggering a second run.
-
-### 2026-03-19
-
-- **Account status display fix**: Fixed a frontend string-matching bug that incorrectly showed healthy accounts as invalid.
-- **Old account PeerIdInvalid fix**: Fixed `.session` file accounts being forced into in-memory mode, causing `PeerIdInvalid` failures.
-
-### 2026-03-12
-
-- **Core stability fix**: Fixed async lock starvation and memory leaks caused by Pyrogram timeout and `FloodWait` infinite retry loops.
-
-### 2026-03-06
-
-- Action sequence order optimized; AI Vision/Calculate now support inline sub-modes; task copy opens a dialog with one-click copy; UTF-8 export fix for emoji content.
-
-### 2026-03-01
-
-- AI action upgrade; reduced `TimeoutError` / `429` log noise; long-running stability and memory improvements; added custom data directory support.
 
 ## Acknowledgements
 
