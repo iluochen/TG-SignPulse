@@ -725,16 +725,13 @@ class SignTaskService:
             except (TypeError, ValueError):
                 message_thread_id = None
 
-            log_tail = "\n".join((flow_logs or [])[-20:])
             text = (
-                "✅ TG-SignPulse 任务执行成功\n"
+                "✅ 签到成功\n"
                 f"账号: {account_name}\n"
-                f"任务: {task_name}\n"
+                f"任务: {task_name}"
             )
             if message:
-                text += f"回复: {message}"
-            if log_tail:
-                text += f"\n\n最近日志:\n{log_tail}"
+                text += f"\n回复: {message}"
             from backend.services.push_notifications import send_telegram_bot_message
 
             await send_telegram_bot_message(
