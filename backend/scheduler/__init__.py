@@ -54,20 +54,59 @@ async def _job_run_task(task_id: int) -> None:
         db.close()
 
 
-async def _job_run_sign_task(account_name: str, task_name: str) -> None:
+TASK_RETRY_DELAY_SECONDS = 600  # 失败后 10 分钟重试一次
+
+
+def _schedule_task_retry(account_name: str, task_name: str) -> None:
+    """失败后注册一次性重试 job，10 分钟后执行，不再产生新重试。"""
+    global scheduler
+    if not scheduler:
+        return
+    from datetime import datetime, timedelta
+    from apscheduler.triggers.date import DateTrigger
+
+    retry_id = f"sign-{account_name}-{task_name}-retry"
+    run_at = datetime.now() + timedelta(seconds=TASK_RETRY_DELAY_SECONDS)
+    try:
+        scheduler.add_job(
+            _job_run_sign_task,
+            trigger=DateTrigger(run_date=run_at),
+            id=retry_id,
+            args=[account_name, task_name, True],   # is_retry=True
+            replace_existing=True,
+        )
+        logger.info(
+            "任务 %s 执行失败，将在 %d 分钟后重试 (约 %s)",
+            task_name,
+            TASK_RETRY_DELAY_SECONDS // 60,
+            run_at.strftime("%H:%M:%S"),
+        )
+    except Exception as e:
+        logger.warning("注册重试任务 %s 失败: %s", task_name, e)
+
+
+async def _job_run_sign_task(
+    account_name: str, task_name: str, is_retry: bool = False
+) -> None:
     """运行签到任务的 Job 包装器（直接执行，不含随机延迟）"""
     from backend.services.sign_tasks import get_sign_task_service
 
+    prefix = "[重试] " if is_retry else ""
     try:
-        logger.info("开始执行签到任务 %s (账号: %s)", task_name, account_name)
+        logger.info("%s开始执行签到任务 %s (账号: %s)", prefix, task_name, account_name)
         sign_task_service = get_sign_task_service()
         result = await sign_task_service.run_task_with_logs(account_name, task_name)
         if result.get("success"):
-            logger.info("任务 %s 执行成功", task_name)
+            logger.info("%s任务 %s 执行成功", prefix, task_name)
         else:
-            logger.error("任务 %s 执行失败: %s", task_name, result.get("error"))
+            logger.error("%s任务 %s 执行失败: %s", prefix, task_name, result.get("error"))
+            # 账号失效不重试；已经是重试则不再重试
+            if not is_retry and not result.get("account_invalid"):
+                _schedule_task_retry(account_name, task_name)
     except Exception as e:
-        logger.error("运行签到任务 %s 异常: %s", task_name, e, exc_info=True)
+        logger.error("%s运行签到任务 %s 异常: %s", prefix, task_name, e, exc_info=True)
+        if not is_retry:
+            _schedule_task_retry(account_name, task_name)
 
 
 def _schedule_range_random_run(account_name: str, task_name: str, st: dict) -> None:

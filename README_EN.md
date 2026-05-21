@@ -161,6 +161,12 @@ frontend/     Next.js management panel
 
 ## Changelog
 
+### 2026-05-21
+
+- **Automatic task retry**: If a sign-in task fails due to network timeout or other errors, it will be retried once after 10 minutes. Retries are skipped when the account session is invalid, and a retried task will not produce a second retry on failure.
+- **Range-mode delay via DateTrigger**: The random delay within the execution window now uses an APScheduler `DateTrigger` instead of `asyncio.sleep`, so the scheduled run survives a process restart.
+- **Simplified success notification**: Removed the log tail from notifications; only the account name, task name, and sign-in reply are included.
+
 ### 2026-05-12
 
 - **Fix task execution 500 error**: A local `logger` assignment inside the `except` block of `run_task_with_logs` caused an `UnboundLocalError` throughout the function; the redundant assignment has been removed.

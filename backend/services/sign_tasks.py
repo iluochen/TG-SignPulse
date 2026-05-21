@@ -1967,6 +1967,7 @@ class SignTaskService:
             "success": success,
             "output": output_str,
             "error": error_msg,
+            "account_invalid": account_invalid_detected,
         }
 
 
